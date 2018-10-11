@@ -1,0 +1,10 @@
+### Python ###
+# Byte-compiled / optimized / DLL files
+__pycache__/
+
+
+
+### VisualStudioCode ###
+.vscode/*
+!.vscode/settings.json
+!.vscode/launch.json
