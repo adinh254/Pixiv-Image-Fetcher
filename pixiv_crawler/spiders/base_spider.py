@@ -9,7 +9,7 @@ class BaseSpider(scrapy.Spider):
         return scrapy.FormRequest.from_response(
             response,
             formdata = {"pixiv_id" : "lazeegutar@gmail.com", "password" : "2aseChuW"},
-            callback = self.after_login
+            callback = self.afterLogin
         )
     
     # Case to check login validity
@@ -22,15 +22,12 @@ class BaseSpider(scrapy.Spider):
         
         # Generate response
         self.logger.info("Login Successful!")
-        return Request(url = "https://www.pixiv.net/bookmark.php", 
-            callback = self.parse_bookmarks)
+        return scrapy.Request(url = "https://www.pixiv.net/bookmark.php", 
+            callback = self.parseBookmarks)
     
-    # Points to each bookmarked image
-    # Call ExtractionSpider
+    # Get list of all bookmarked image urls in current page
+    # Iterate through list and extract images
     def parseBookmarks(self, response):
-        # Selector Variable
-
-        # Loop response body and check select variable
+        image_urls = response.xpath('//div[@class="display_editable_works"]').css('a.work::attr(href)').extract()
 
         
-    
