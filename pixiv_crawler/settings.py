@@ -46,15 +46,15 @@ ROBOTSTXT_OBEY = True
 
 # Enable or disable spider middlewares
 # See https://doc.scrapy.org/en/latest/topics/spider-middleware.html
-#SPIDER_MIDDLEWARES = {
-#    'pixiv_crawler.middlewares.PixivCrawlerSpiderMiddleware': 543,
-#}
+# SPIDER_MIDDLEWARES = {
+#     'pixiv_crawler.middlewares.PixivCrawlerSpiderMiddleware': 543,
+# }
 
 # Enable or disable downloader middlewares
 # See https://doc.scrapy.org/en/latest/topics/downloader-middleware.html
-#DOWNLOADER_MIDDLEWARES = {
-#    'pixiv_crawler.middlewares.PixivCrawlerDownloaderMiddleware': 543,
-#}
+# DOWNLOADER_MIDDLEWARES = {
+#     'pixiv_crawler.middlewares.PixivCrawlerDownloaderMiddleware': 543,
+# }
 
 # Enable or disable extensions
 # See https://doc.scrapy.org/en/latest/topics/extensions.html
@@ -64,9 +64,11 @@ ROBOTSTXT_OBEY = True
 
 # Configure item pipelines
 # See https://doc.scrapy.org/en/latest/topics/item-pipeline.html
-#ITEM_PIPELINES = {
-#    'pixiv_crawler.pipelines.PixivCrawlerPipeline': 300,
-#}
+FILES_STORE = 'C:\\Users\\adinh\\source\\repos\\pixiv_crawler\\native_images'
+ITEM_PIPELINES = {
+    'pixiv_crawler.pipelines.PixivImagePipeline': 1,
+    # 'pixiv_crawler.pipelines.PixivCrawlerPipeline': 300,
+}
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://doc.scrapy.org/en/latest/topics/autothrottle.html
@@ -88,3 +90,21 @@ ROBOTSTXT_OBEY = True
 #HTTPCACHE_DIR = 'httpcache'
 #HTTPCACHE_IGNORE_HTTP_CODES = []
 #HTTPCACHE_STORAGE = 'scrapy.extensions.httpcache.FilesystemCacheStorage'
+
+DOWNLOADER_MIDDLEWARES = {
+    # Engine side
+    'scrapy_splash.SplashCookiesMiddleware': 723,
+    'scrapy_splash.SplashMiddleware': 725,
+    'scrapy.downloadermiddlewares.httpcompression.HttpCompressionMiddleware': 810,
+    # Downloader side
+}
+
+SPIDER_MIDDLEWARES = {
+    'scrapy_splash.SplashDeduplicateArgsMiddleware': 100,
+}
+SPLASH_URL = 'http://localhost:8050/'
+# SPLASH_URL = 'http://192.168.59.103:8050/'
+DUPEFILTER_CLASS = 'scrapy_splash.SplashAwareDupeFilter'
+HTTPCACHE_STORAGE = 'scrapy_splash.SplashAwareFSCacheStorage'
+SPLASH_COOKIES_DEBUG = True
+COOKIES_DEBUG = True

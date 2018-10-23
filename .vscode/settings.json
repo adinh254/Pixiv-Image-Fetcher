@@ -2,4 +2,5 @@
     "python.pythonPath": "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\Python36_64\\python.exe",
     "python.linting.pylintEnabled": true,
     "python.linting.enabled": true,
+    "python.linting.pylintPath": "C:\\Users\\adinh\\AppData\\Roaming\\Python\\Python36\\Scripts\\pylint.exe"
 }

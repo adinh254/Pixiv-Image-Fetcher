@@ -5,10 +5,14 @@
 # See documentation in:
 # https://doc.scrapy.org/en/latest/topics/items.html
 
+"""Convert Image Urls to items
+
+"""
 import scrapy
 
 
 class PixivCrawlerItem(scrapy.Item):
     # define the fields for your item here like:
-    # name = scrapy.Field()
-    pass
+    image_urls = scrapy.Field()
+    images = scrapy.Field()
+    referer = scrapy.Field()
