@@ -5,6 +5,8 @@ using a provided form data and then redirects to the user bookmarks.
 """
 import base64
 import scrapy
+from scrapy.http import HtmlResponse
+from scrapy.linkextractors import LinkExtractor
 from scrapy_splash import SplashRequest, SplashJsonResponse
 
 from .. import items
@@ -12,22 +14,26 @@ from .. import items
 class BaseSpider(scrapy.Spider):
     """Initial spider to login to Pixiv page"""
     name = "login"
-    allow_domains = ['pixiv.net']
 
     start_urls = ['https://accounts.pixiv.net/login']
+    bookmarks_page = 'https://www.pixiv.net/bookmark.php'
+
+    # rules = {
+
+    #     Rule(LinkExtractor(allow_domains='pixiv.net',
+    #                        restrict_css=('div.display_editable_works a._work')),
+    #                        process_request='processSplash')
+
+    # }
 
     def parse(self, response):
-        """Function called before crawling"""
+        """Generates login form request"""
 
-         return scrapy.FormRequest.from_response(
+        return scrapy.FormRequest.from_response(
             response,
             formdata={"pixiv_id" : "lazeegutar@gmail.com", "password" : "2aseChuW"},
             callback=self.afterLogin
         )
-    
-    def login(self, response):
-        """Generates login form request"""
-       
 
     def afterLogin(self, response):
         """Check login validity
@@ -40,10 +46,13 @@ class BaseSpider(scrapy.Spider):
             return None
 
         self.logger.info("Login Successful!")
-        return scrapy.Request(url=self.bookmarks_page)
+        return scrapy.Request(url=self.bookmarks_page, callback=self.parseBookmarks)
 
-    def processSplash(self, request):
-        """Lua Script to wait until Splash renders element."""
+    def parseBookmarks(self, response):
+        """Lua Script to wait until Splash renders element.
+        
+        Gets all artist work pages in current bookmarks.
+        """
 
         wait_for_element = """
         function main(splash)
@@ -58,15 +67,12 @@ class BaseSpider(scrapy.Spider):
         end
         """
 
-        return SplashRequest(request.url, self.getImage,
-                             endpoint='execute',
-                             cache_args=['lua_source'],
-                             args={
-                                 'css' : 'div.css-4f40ux',
-                                 'lua_source' : wait_for_element
-                                 }
-                            )
+        image_page_urls = response.css('div.display_editable_works a._work::attr(href)').extract()
 
+        for images in image_page_urls:
+            yield SplashRequest(response.url, self.getImage,
+                                endpoint='execute',
+                                
 
     def getImage(self, response):
         """Extract native image url from artist image page.
@@ -74,27 +80,31 @@ class BaseSpider(scrapy.Spider):
         Check if image url is an album
         Converts to item and insert into pipeline.
         """
+
+        from scrapy.shell import inspect_response
+        inspect_response(response, self)
+
         png_bytes = base64.b64decode(response.data['png'])
-        with open('debug.png', 'wb') as outFile:
-           outFile.write(png_bytes)
+        with open('debug.png', 'wb') as out_file:
+           out_file.write(png_bytes)
 
         item = items.PixivCrawlerItem()
         item['image_urls'] = [response.xpath('//div[@role="presentation"]//a/@href').extract_first()]
         item['referer'] = [response.url]
         return item
 
-    def _requests_to_follow(self, response):
-        """Overridden to process SplashJsonResponse"""
+    # def _requests_to_follow(self, response):
+    #     """Overridden to process SplashJsonResponse"""
 
-        if not isinstance(response, HtmlResponse) and not isinstance(response, SplashJsonResponse):
-            return
-        seen = set()
-        for n, rule in enumerate(self._rules):
-            links = [lnk for lnk in rule.link_extractor.extract_links(response)
-                     if lnk not in seen]
-            if links and rule.process_links:
-                links = rule.process_links(links)
-            for link in links:
-                seen.add(link)
-                r = self._build_request(n, link)
-                yield rule.process_request(r)
+    #     if not isinstance(response, HtmlResponse) and not isinstance(response, SplashJsonResponse):
+    #         return
+    #     seen = set()
+    #     for n, rule in enumerate(self._rules):
+    #         links = [lnk for lnk in rule.link_extractor.extract_links(response)
+    #                  if lnk not in seen]
+    #         if links and rule.process_links:
+    #             links = rule.process_links(links)
+    #         for link in links:
+    #             seen.add(link)
+    #             r = self._build_request(n, link)
+    #             yield rule.process_request(r)
