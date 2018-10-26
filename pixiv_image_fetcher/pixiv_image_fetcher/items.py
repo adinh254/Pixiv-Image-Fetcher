@@ -11,8 +11,17 @@
 import scrapy
 
 
-class PixivCrawlerItem(scrapy.Item):
-    # define the fields for your item here like:
+class BookmarksImage(scrapy.Item):
+    """Image information
+
+    Downloaded image name format data
+    """
+    # Info
     image_urls = scrapy.Field()
-    images = scrapy.Field()
     referer = scrapy.Field()
+
+    #Format
+    user_id = scrapy.Field()
+    artist_id = scrapy.Field()
+    illust_id = scrapy.Field()
+    image_num = scrapy.Field()

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Scrapy settings for pixiv_crawler project
+# Scrapy settings for pixiv_image_fetcher project
 #
 # For simplicity, this file contains only settings considered important or
 # commonly used. You can find more settings consulting the documentation:
@@ -9,14 +9,14 @@
 #     https://doc.scrapy.org/en/latest/topics/downloader-middleware.html
 #     https://doc.scrapy.org/en/latest/topics/spider-middleware.html
 
-BOT_NAME = 'pixiv_crawler'
+BOT_NAME = 'pixiv_image_fetcher'
 
-SPIDER_MODULES = ['pixiv_crawler.spiders']
-NEWSPIDER_MODULE = 'pixiv_crawler.spiders'
+SPIDER_MODULES = ['pixiv_image_fetcher.spiders']
+NEWSPIDER_MODULE = 'pixiv_image_fetcher.spiders'
 
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
-#USER_AGENT = 'pixiv_crawler (+http://www.yourdomain.com)'
+#USER_AGENT = 'pixiv_image_fetcher (+http://www.yourdomain.com)'
 
 # Obey robots.txt rules
 ROBOTSTXT_OBEY = True
@@ -46,15 +46,15 @@ ROBOTSTXT_OBEY = True
 
 # Enable or disable spider middlewares
 # See https://doc.scrapy.org/en/latest/topics/spider-middleware.html
-# SPIDER_MIDDLEWARES = {
-#     'pixiv_crawler.middlewares.PixivCrawlerSpiderMiddleware': 543,
-# }
+#SPIDER_MIDDLEWARES = {
+#    'pixiv_image_fetcher.middlewares.PixivImageFetcherSpiderMiddleware': 543,
+#}
 
 # Enable or disable downloader middlewares
 # See https://doc.scrapy.org/en/latest/topics/downloader-middleware.html
-# DOWNLOADER_MIDDLEWARES = {
-#     'pixiv_crawler.middlewares.PixivCrawlerDownloaderMiddleware': 543,
-# }
+#DOWNLOADER_MIDDLEWARES = {
+#    'pixiv_image_fetcher.middlewares.PixivImageFetcherDownloaderMiddleware': 543,
+#}
 
 # Enable or disable extensions
 # See https://doc.scrapy.org/en/latest/topics/extensions.html
@@ -64,10 +64,9 @@ ROBOTSTXT_OBEY = True
 
 # Configure item pipelines
 # See https://doc.scrapy.org/en/latest/topics/item-pipeline.html
-FILES_STORE = 'C:\\Users\\adinh\\source\\repos\\pixiv_crawler\\native_images'
+FILES_STORE = 'C:\\Users\\adinh\\source\\repos\\pixiv_crawler\\bookmarks'
 ITEM_PIPELINES = {
-    'pixiv_crawler.pipelines.PixivImagePipeline': 1,
-    # 'pixiv_crawler.pipelines.PixivCrawlerPipeline': 300,
+    'pixiv_image_fetcher.pipelines.PixivImagePipeline': 1,
 }
 
 # Enable and configure the AutoThrottle extension (disabled by default)
@@ -90,21 +89,3 @@ ITEM_PIPELINES = {
 #HTTPCACHE_DIR = 'httpcache'
 #HTTPCACHE_IGNORE_HTTP_CODES = []
 #HTTPCACHE_STORAGE = 'scrapy.extensions.httpcache.FilesystemCacheStorage'
-
-DOWNLOADER_MIDDLEWARES = {
-    # Engine side
-    'scrapy_splash.SplashCookiesMiddleware': 723,
-    'scrapy_splash.SplashMiddleware': 725,
-    'scrapy.downloadermiddlewares.httpcompression.HttpCompressionMiddleware': 810,
-    # Downloader side
-}
-
-SPIDER_MIDDLEWARES = {
-    'scrapy_splash.SplashDeduplicateArgsMiddleware': 100,
-}
-SPLASH_URL = 'http://localhost:8050/'
-# SPLASH_URL = 'http://192.168.59.103:8050/'
-DUPEFILTER_CLASS = 'scrapy_splash.SplashAwareDupeFilter'
-HTTPCACHE_STORAGE = 'scrapy_splash.SplashAwareFSCacheStorage'
-SPLASH_COOKIES_DEBUG = True
-COOKIES_DEBUG = True
