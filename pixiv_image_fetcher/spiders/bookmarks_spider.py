@@ -93,13 +93,13 @@ class BaseSpider(scrapy.Spider):
         """Obtain all image urls in current album."""
 
         index = response.url.rfind('=') + 1
-        illust_id = response.url[index : -1]
+        illust_id = response.url[index :]
 
         album_imgs = response.css('section.manga a::attr(href)').extract()
         for count, img_url in enumerate(album_imgs):
             yield response.follow(url=img_url, callback=self.getImage,
                                   meta={
-                                      'img_num' : count + 1,
+                                      'image_num' : count + 1,
                                       'user_id' : response.meta['user_id'],
                                       'artist_id' : response.meta['artist_id'],
                                       'illust_id' : illust_id,
@@ -119,7 +119,7 @@ class BaseSpider(scrapy.Spider):
         if multiple:
             illust_id = response.meta['illust_id']
             orig_url = response.xpath('//img/@src').extract_first()
-            item['image_num'] = [response.meta['img_num']]
+            item['image_num'] = [response.meta['image_num']]
 
         else:
             pattern = re.compile('"original":"(.*?)"')

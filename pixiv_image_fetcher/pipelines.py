@@ -20,10 +20,10 @@ class PixivImagePipeline(FilesPipeline):
     def get_media_requests(self, item, info):
         """Overriden for Exception Handling"""
         try:
-            if 'item_num' not in item:
-                item_num = None
+            if 'image_num' not in item:
+                image_num = None
             else:
-                item_num = item['item_num'][0]
+                image_num = item['image_num'][0]
 
             return scrapy.Request(item['image_urls'][0], 
                                   headers={
@@ -33,7 +33,7 @@ class PixivImagePipeline(FilesPipeline):
                                       'user_id' : item['user_id'][0],
                                       'artist_id' : item['artist_id'][0],
                                       'illust_id' : item['illust_id'][0],
-                                      'item_num' : item_num,
+                                      'image_num' : image_num,
                                   })
         except TypeError:
             raise DropItem('Missing "image_url" in Response: %s;'
@@ -53,10 +53,10 @@ class PixivImagePipeline(FilesPipeline):
 
         media_ext = os.path.splitext(request.url)[1]
 
-        if request.meta['item_num']:
+        if request.meta['image_num']:
             return '%s/%s_%s/%s_%s%s' % (request.meta['user_id'], request.meta['artist_id'], 
                                          request.meta['illust_id'], request.meta['illust_id'], 
-                                         request.meta['item_num'], media_ext)
+                                         request.meta['image_num'], media_ext)
 
         return '%s/%s_%s%s' % (request.meta['user_id'], request.meta['artist_id'], 
                                request.meta['illust_id'], media_ext)
