@@ -11,7 +11,7 @@ import scrapy
 
 from .. import items
 
-class BaseSpider(scrapy.Spider):
+class BookmarksSpider(scrapy.Spider):
     """Initial spider to login to Pixiv page"""
     name = "login"
 
@@ -19,6 +19,15 @@ class BaseSpider(scrapy.Spider):
 
     start_urls = ['https://accounts.pixiv.net/login']
     bookmarks_page = 'https://www.pixiv.net/bookmark.php'
+
+    # User Input
+    pixiv_id = 'lazeegutar@gmail.com'
+    password = '2aseChuW'
+    
+    # Class Variables
+    user_id = ''
+    illust_pattern = re.compile(r'member.+?\d+')
+    orig_image_pattern = re.compile(r'"original":"(.*?)"')
 
     # rules = {
 
@@ -33,7 +42,7 @@ class BaseSpider(scrapy.Spider):
 
         return scrapy.FormRequest.from_response(
             response,
-            formdata={"pixiv_id" : "lazeegutar@gmail.com", "password" : "2aseChuW"},
+            formdata={"pixiv_id" : self.pixiv_id, "password" : self.password},
             callback=self.afterLogin
         )
 
@@ -48,89 +57,82 @@ class BaseSpider(scrapy.Spider):
             self.logger.error("Login failed")
             return None
 
-        id_pattern = re.compile(r'pixiv\.user\.id = "(\d+?)"')
-        user_id = response.xpath('//head/script[contains(., "pixiv.user.id = ")]/text()') \
-                                 .re(id_pattern)[0]
+        user_id_pattern = re.compile(r'pixiv\.user\.id = "(\d+?)"')
+        self.user_id = response.xpath('//head/script[contains(., "pixiv.user.id = ")]/text()') \
+                                 .re(user_id_pattern)[0]
 
         self.logger.info("Login Successful!")
-        return scrapy.Request(url=self.bookmarks_page, callback=self.parseBookmarks, 
-                              meta={'user_id' : user_id})
+        return scrapy.Request(url=self.bookmarks_page, callback=self.parseBookmarks)
 
     def parseBookmarks(self, response):
-        """Gets all artist work and artist info in current bookmark page.
+        """Gets all artist illustrations and artist info in current bookmark page.
 
-        Case if artist work is an album and contains multiple images.
+        Case if artist illustration is an album and contains multiple images.
         """
 
-        img_link_pattern = re.compile(r'member.+?\d+')
-        img_link_selectors = response.css('div.display_editable_works a._work').extract()
+        illust_selectors = response.css('div.display_editable_works a._work').extract()
 
         artist_ids = response.xpath('//div[@class="display_editable_works"]//a/@data-user_id') \
                              .extract()
 
-        for artist_work, artist_id in zip(img_link_selectors, artist_ids):
-            if 'multiple' in artist_work:
-                class_multiple = artist_work.replace('medium', 'manga')
-                class_multiple = class_multiple.replace('amp;', '')
-                album_link = img_link_pattern.search(class_multiple)[0]
-                yield response.follow(url=album_link, callback=self.parseAlbum, 
+        for illust_selector, artist_id in zip(illust_selectors, artist_ids):
+            illust_url = self.illust_pattern.search(illust_selector)[0] \
+                                            .replace('amp;', '')
+
+            index = illust_url.rfind('=') + 1
+            illust_id = illust_url[index :]
+
+            if 'multiple' in illust_selector:
+                album_url = illust_url.replace('medium', 'manga')
+                yield response.follow(url=album_url, callback=self.parseAlbum, 
                                       meta={
-                                          'user_id' : response.meta['user_id'],
                                           'artist_id' : artist_id,
+                                          'illust_id' : illust_id,
                                           }
                                      )
             else:
-                img_link = img_link_pattern.search(artist_work)[0]
-                img_link = img_link.replace('amp;', '')
-                yield response.follow(url=img_link, callback=self.getImage,
+                yield response.follow(url=illust_url, callback=self.getImage,
                                       meta={
-                                          'user_id' : response.meta['user_id'],
                                           'artist_id' : artist_id,
+                                          'illust_id' : illust_id,
                                           }
                                      )
 
     def parseAlbum(self, response):
         """Obtain all image urls in current album."""
 
-        index = response.url.rfind('=') + 1
-        illust_id = response.url[index :]
-
-        album_imgs = response.css('section.manga a::attr(href)').extract()
-        for count, img_url in enumerate(album_imgs):
-            yield response.follow(url=img_url, callback=self.getImage,
+        album_images = response.css('section.manga a::attr(href)').extract()
+        for count, image_url in enumerate(album_images):
+            yield response.follow(url=image_url, callback=self.getImage,
                                   meta={
                                       'image_num' : count + 1,
-                                      'user_id' : response.meta['user_id'],
                                       'artist_id' : response.meta['artist_id'],
-                                      'illust_id' : illust_id,
-                                      'multiple' : True,
+                                      'illust_id' : response.meta['illust_id'],
+                                      'album' : True,
                                       }
                                  )
 
     def getImage(self, response):
         """Extract native image url from artist image page.
 
-        Case if response has multiple images
+        Case if response has is an album
         """
 
         item = items.BookmarksImage()
-        multiple = response.meta.get('multiple')
-
-        if multiple:
-            illust_id = response.meta['illust_id']
-            orig_url = response.xpath('//img/@src').extract_first()
-            item['image_num'] = [response.meta['image_num']]
-
-        else:
-            pattern = re.compile('"original":"(.*?)"')
-            pattern_url = response.xpath('//head/script[contains(., "urls")]/text()').re(pattern)[0]
-            index = response.url.rfind('=') + 1
-            illust_id = response.url[index: -1]
-            orig_url = pattern_url.replace('\\', '')
-
-        item['image_urls'] = [orig_url]
-        item['referer'] = [response.url]
-        item['user_id'] = [response.meta['user_id']]
+        item['user_id'] = [self.user_id]
         item['artist_id'] = [response.meta['artist_id']]
-        item['illust_id'] = [illust_id]
+        item['illust_id'] = [response.meta['illust_id']]
+        item['referer'] = [response.url]
+
+        album = response.meta.get('album')
+
+        if album:
+            orig_image_url = response.xpath('//img/@src').extract_first()
+            item['image_num'] = [response.meta['image_num']]
+        else:
+            orig_image_selector = response.xpath('//head/script[contains(., "urls")]/text()')
+            orig_image_str = orig_image_selector.re(self.orig_image_pattern)[0]
+            orig_image_url = orig_image_str.replace('\\', '')
+
+        item['image_urls'] = [orig_image_url]
         return item
