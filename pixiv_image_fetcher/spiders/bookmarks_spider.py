@@ -21,9 +21,10 @@ class BookmarksSpider(scrapy.Spider):
     bookmarks_page = 'https://www.pixiv.net/bookmark.php'
 
     # User Input
-    pixiv_id = 'lazeegutar@gmail.com'
-    password = '2aseChuW'
-    
+    pixiv_id = 'decayingapple@gmail.com'
+    password = '1L1KEceRE4l'
+    max_page_number = 2
+
     # Class Variables
     user_id = ''
     illust_pattern = re.compile(r'member.+?\d+')
@@ -68,8 +69,8 @@ class BookmarksSpider(scrapy.Spider):
         """Gets all artist illustrations and artist info in current bookmark page.
 
         Case if artist illustration is an album and contains multiple images.
+        Recursively calls next page.
         """
-
         illust_selectors = response.css('div.display_editable_works a._work').extract()
 
         artist_ids = response.xpath('//div[@class="display_editable_works"]//a/@data-user_id') \
@@ -97,6 +98,13 @@ class BookmarksSpider(scrapy.Spider):
                                           'illust_id' : illust_id,
                                           }
                                      )
+
+        next_page = response.xpath('//span[@class="next"]/a/@href').extract_first()
+        index = next_page.rfind('=') + 1
+        next_page_number = int(next_page[index :])
+
+        if next_page is not None and next_page_number <= self.max_page_number:
+            yield response.follow(url=next_page, callback=self.parseBookmarks)
 
     def parseAlbum(self, response):
         """Obtain all image urls in current album."""
@@ -135,4 +143,4 @@ class BookmarksSpider(scrapy.Spider):
             orig_image_url = orig_image_str.replace('\\', '')
 
         item['image_urls'] = [orig_image_url]
-        return item
+        yield item

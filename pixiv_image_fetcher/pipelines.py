@@ -30,7 +30,7 @@ class PixivImagePipeline(FilesPipeline):
                                       'referer': item['referer'][0]
                                   },
                                   meta={
-                                      'user_id' : item['user_id'],
+                                      'user_id' : item['user_id'][0],
                                       'artist_id' : item['artist_id'][0],
                                       'illust_id' : item['illust_id'][0],
                                       'image_num' : image_num,
