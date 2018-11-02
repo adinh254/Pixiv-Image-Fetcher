@@ -24,4 +24,3 @@ class BookmarksImage(scrapy.Item):
     user_id = scrapy.Field()
     artist_id = scrapy.Field()
     illust_id = scrapy.Field()
-    image_num = scrapy.Field()
