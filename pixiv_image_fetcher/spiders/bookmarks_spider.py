@@ -5,9 +5,11 @@ using a provided form data and then redirects to the user bookmarks.
 """
 
 import re
+import os
+
 import scrapy
-# from scrapy.http import HtmlResponse
-# from scrapy.linkextractors import LinkExtractor
+
+from scrapy.spidermiddlewares.httperror import HttpError
 
 from .. import items
 
@@ -29,9 +31,7 @@ class BookmarksSpider(scrapy.Spider):
     user_id = ''
     illust_pattern = re.compile(r'member.+?\d+')
     # orig_image_pattern = re.compile(r'"original":"(.*?)"')
-    orig_image_pattern = re.compile(r'(c.*?master)(.*?)(_m.*?g)')
-    selector_pattern = re.compile(r'class="(.*?)".*?data-src="(.*?)".*? \
-                                  data-id="(\d+)".*?data-user-id="(\d+)"')
+    orig_image_pattern = re.compile(r'(c.*?master)(.*?)(_m.*?)(.jpg)')
 
     # rules = {
 
@@ -74,33 +74,34 @@ class BookmarksSpider(scrapy.Spider):
         Case if artist illustration is an album and contains multiple images.
         Recursively calls next page.
         """
-        illust_selectors = response.css('div.display_editable_works a._work')
-        item = items.BookmarksImage()
-        item['user_id'] = self.user_id
 
-        # artist_ids = response.xpath('//div[@class="display_editable_works"]//a/@data-user_id') \
-        #                      .extract()
+        illust_selectors = response.css('div.display_editable_works a._work')
 
         for illust_selector in illust_selectors:
+            item = items.BookmarksImage()
+            item['user_id'] = self.user_id
             referer = response.urljoin(illust_selector.xpath('@href').extract_first())
             thumbnail_image_url = illust_selector.xpath('div/img/@data-src').extract_first()
-            orig_image_url = re.sub(self.orig_image_pattern, r'img-original\g<2>',
+            orig_image_url = re.sub(self.orig_image_pattern, r'img-original\g<2>\g<4>',
                                     thumbnail_image_url)
             illust_id = illust_selector.xpath('div/img/@data-id').extract_first()
             artist_id = illust_selector.xpath('div/img/@data-user-id').extract_first()
-            item['image_urls'] = [orig_image_url]
+
             item['illust_id'] = illust_id
             item['artist_id'] = artist_id
             item['referer'] = referer
 
-            if 'multiple' in illust_selector.extract():
-                num_of_images = int(illust_selector.xpath('div/span/text()').extract_first())
-                for image_num in range(1, num_of_images):
-                    #todo last digit manipulation bug
-                    index = orig_image_url.rfind('p') + 1
-                    orig_image_url = orig_image_url[:index] + str(image_num)
-                    item['image_urls'].append(orig_image_url)
-            yield item
+            num_of_images = illust_selector.xpath('div/span/text()').extract_first()
+            yield scrapy.Request(url=orig_image_url,
+                                 callback=self.getImage,
+                                 errback=self.retryFormat,
+                                 headers={
+                                     'referer': referer,
+                                 },
+                                 meta={
+                                     'item' : item,
+                                     'num_of_images' : num_of_images,
+                                 })
 
         next_page = response.xpath('//span[@class="next"]/a/@href').extract_first()
         index = next_page.rfind('=') + 1
@@ -109,41 +110,32 @@ class BookmarksSpider(scrapy.Spider):
         if next_page is not None and next_page_number <= self.max_page_number:
             yield response.follow(url=next_page, callback=self.parseBookmarks)
 
-    # def parseAlbum(self, response):
-    #     """Obtain all image urls in current album."""
+    def getImage(self, response):
+        """Insert image information into pipeline.
 
-    #     album_images = response.css('section.manga a::attr(href)').extract()
-    #     for count, image_url in enumerate(album_images):
-    #         yield response.follow(url=image_url, callback=self.getImage,
-    #                               meta={
-    #                                   'image_num' : count + 1,
-    #                                   'artist_id' : response.meta['artist_id'],
-    #                                   'illust_id' : response.meta['illust_id'],
-    #                                   'album' : True,
-    #                                   }
-    #                              )
+        Check if image is in an album.
+        """
+        image_url, image_format = os.path.splitext(response.url)
+        num_of_images = response.meta.get('num_of_images')
+        item = response.meta['item']
+        item['image_urls'] = [response.url]
 
-    # def getImage(self, response):
-    #     """Extract native image url from artist image page.
+        if num_of_images:
+            for image_num in range(1, int(num_of_images)):
+                index = image_url.rfind('p') + 1
+                orig_image_url = image_url[:index] + str(image_num) + image_format
+                item['image_urls'].append(orig_image_url)
+        return item
 
-    #     Case if response has is an album
-    #     """
+    def retryFormat(self, failure):
+        """Try request again with png format."""
+        response = failure.value.response
+        if failure.check(HttpError):
+            self.logger.warning('HttpError on %s', response.url)
+            orig_image_url = os.path.splitext(response.url)[0] + '.png'
+            self.logger.info("Attempting to download %s as %s.", response.url, orig_image_url)
 
-    #     item = items.BookmarksImage()
-    #     item['user_id'] = [self.user_id]
-    #     item['artist_id'] = [response.meta['artist_id']]
-    #     item['illust_id'] = [response.meta['illust_id']]
-    #     item['referer'] = [response.url]
-
-    #     album = response.meta.get('album')
-
-    #     if album:
-    #         orig_image_url = response.xpath('//img/@src').extract_first()
-    #         item['image_num'] = [response.meta['image_num']]
-    #     else:
-    #         orig_image_selector = response.xpath('//head/script[contains(., "urls")]/text()')
-    #         orig_image_str = orig_image_selector.re(self.orig_image_pattern)[0]
-    #         orig_image_url = orig_image_str.replace('\\', '')
-
-    #     item['image_urls'] = [orig_image_url]
-    #     yield item
+            return scrapy.Request(url=orig_image_url,
+                                  callback=self.getImage,
+                                  headers=response.request.headers,
+                                  meta=response.request.meta)

@@ -13,7 +13,7 @@ import os.path
 import logging
 
 import scrapy
-from scrapy.pipelines.files import FilesPipeline, FileException
+from scrapy.pipelines.files import FilesPipeline
 from scrapy.exceptions import DropItem
 
 LOGGER = logging.getLogger(__name__)
@@ -31,25 +31,12 @@ class PixivImagePipeline(FilesPipeline):
             if len(item['image_urls']) > 1:
                 request_meta['album'] = True
             for image_num, image_url in enumerate(item['image_urls']):
-                image_url += '.jpg'
                 request_meta['image_num'] = image_num
-                # Doesnt Work, Have to check request in spider.
-                # https://stackoverflow.com/questions/41404281/how-to-retry-the-request-n-times-when-an-item-gets-an-empty-field
-                for _attempt in range(2):
-                    try:
-                        yield scrapy.Request(url=image_url,
-                                             headers={
-                                                 'referer': item['referer']
-                                             },
-                                             meta=request_meta)
-                    except FileException:
-                        LOGGER.info('Attempting to download as PNG')
-                        image_url = os.path.splitext(image_url)[0] + '.png'
-                        continue
-                    else:
-                        break
-                else:
-                    raise DropItem('downloader-error')
+                yield scrapy.Request(url=image_url,
+                                     headers={
+                                         'referer': item['referer']
+                                     },
+                                     meta=request_meta)
         except TypeError:
             raise DropItem('Missing "image_url" in Response: %s;'
                            % item['referer'])
@@ -71,12 +58,3 @@ class PixivImagePipeline(FilesPipeline):
 
         return '%s/%s_%s%s' % (request.meta['user_id'], request.meta['artist_id'], 
                                request.meta['illust_id'], media_ext)
-
-    def media_downloaded(self, response, request, info):
-        for _attempt in range(2):
-            try:
-                return super().media_downloaded(response, request, info)
-            except FileException:
-                LOGGER.info('Attempting to download as PNG')
-                response.url = os.path.splitext(response.url)[0] + '.png'
-                continue
