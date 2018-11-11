@@ -25,8 +25,8 @@ class BookmarksSpider(scrapy.Spider):
     # User Input
     pixiv_id = 'decayingapple@gmail.com'
     password = '1L1KEceRE4l'
-    starting_page = 9
-    last_page = 13
+    starting_page = 14
+    last_page = 14
 
     # Class Variables
     user_id = ''
@@ -68,15 +68,22 @@ class BookmarksSpider(scrapy.Spider):
         Recursively calls next page.
         """
 
-        illust_selectors = response.css('div.display_editable_works a._work')
+        from scrapy.shell import inspect_response
+        inspect_response(response, self)
+
+        # Filters out ugoiras
+        illust_selectors = response.xpath(r'//div[@class="display_editable_works"]'
+                                          r'//a[contains(concat(" ", @class, " "), " _work ")'
+                                          r'and not(contains(concat(" ", @class, " "), '
+                                          r'" ugoku-illust "))]')
         for illust_selector in illust_selectors:
-            referer = response.urljoin(illust_selector.xpath('@href').extract_first())
-            thumbnail_image_url = illust_selector.xpath('div/img/@data-src').extract_first()
+            referer = response.urljoin(illust_selector.xpath('./@href').extract_first())
+            thumbnail_image_url = illust_selector.xpath('./div/img/@data-src').extract_first()
             orig_image_url = re.sub(self.orig_image_pattern, r'img-original\g<2>\g<4>',
                                     thumbnail_image_url)
-            illust_id = illust_selector.xpath('div/img/@data-id').extract_first()
-            artist_id = illust_selector.xpath('div/img/@data-user-id').extract_first()
-            num_of_images = illust_selector.xpath('div/span/text()').extract_first()
+            illust_id = illust_selector.xpath('./div/img/@data-id').extract_first()
+            artist_id = illust_selector.xpath('./div/img/@data-user-id').extract_first()
+            num_of_images = illust_selector.xpath('./div/span/text()').extract_first()
             if artist_id != '0':
                 item = items.BookmarksImage()
                 item['user_id'] = self.user_id
