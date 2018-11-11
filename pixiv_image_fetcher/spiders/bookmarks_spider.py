@@ -20,26 +20,17 @@ class BookmarksSpider(scrapy.Spider):
     allowed_domains = ['pixiv.net', 'i.pximg.net']
 
     start_urls = ['https://accounts.pixiv.net/login']
-    bookmarks_page = 'https://www.pixiv.net/bookmark.php'
+    bookmarks_page = 'https://www.pixiv.net/bookmark.php?rest=show'
 
     # User Input
-    pixiv_id = 'lazeegutar@gmail.com'
-    password = '2aseChuW'
-    max_page_number = 1
+    pixiv_id = 'decayingapple@gmail.com'
+    password = '1L1KEceRE4l'
+    starting_page = 9
+    last_page = 13
 
     # Class Variables
     user_id = ''
-    illust_pattern = re.compile(r'member.+?\d+')
-    # orig_image_pattern = re.compile(r'"original":"(.*?)"')
     orig_image_pattern = re.compile(r'(c.*?master)(.*?)(_m.*?)(.jpg)')
-
-    # rules = {
-
-    #     Rule(LinkExtractor(allow_domains='pixiv.net',
-    #                        restrict_css=('div.display_editable_works a._work')),
-    #                        process_request='processSplash')
-
-    # }
 
     def parse(self, response):
         """Generates login form request"""
@@ -66,6 +57,8 @@ class BookmarksSpider(scrapy.Spider):
                                  .re(user_id_pattern)[0]
 
         self.logger.info("Login Successful!")
+        if self.starting_page:
+            self.bookmarks_page += '&p=%s' % str(self.starting_page)
         return scrapy.Request(url=self.bookmarks_page, callback=self.parseBookmarks)
 
     def parseBookmarks(self, response):
@@ -76,38 +69,39 @@ class BookmarksSpider(scrapy.Spider):
         """
 
         illust_selectors = response.css('div.display_editable_works a._work')
-
         for illust_selector in illust_selectors:
-            item = items.BookmarksImage()
-            item['user_id'] = self.user_id
             referer = response.urljoin(illust_selector.xpath('@href').extract_first())
             thumbnail_image_url = illust_selector.xpath('div/img/@data-src').extract_first()
             orig_image_url = re.sub(self.orig_image_pattern, r'img-original\g<2>\g<4>',
                                     thumbnail_image_url)
             illust_id = illust_selector.xpath('div/img/@data-id').extract_first()
             artist_id = illust_selector.xpath('div/img/@data-user-id').extract_first()
-
-            item['illust_id'] = illust_id
-            item['artist_id'] = artist_id
-            item['referer'] = referer
-
             num_of_images = illust_selector.xpath('div/span/text()').extract_first()
-            yield scrapy.Request(url=orig_image_url,
-                                 callback=self.getImage,
-                                 errback=self.retryFormat,
-                                 headers={
-                                     'referer': referer,
-                                 },
-                                 meta={
-                                     'item' : item,
-                                     'num_of_images' : num_of_images,
-                                 })
+            if artist_id != '0':
+                item = items.BookmarksImage()
+                item['user_id'] = self.user_id
+                item['illust_id'] = illust_id
+                item['artist_id'] = artist_id
+                item['referer'] = referer
+
+                yield scrapy.Request(url=orig_image_url,
+                                     callback=self.getImage,
+                                     errback=self.retryFormat,
+                                     headers={
+                                         'referer': referer,
+                                     },
+                                     meta={
+                                         'item' : item,
+                                         'num_of_images' : num_of_images,
+                                     })
+            else:
+                self.logger.warning('Illustration %s has been deleted.', illust_id)
 
         next_page = response.xpath('//span[@class="next"]/a/@href').extract_first()
         index = next_page.rfind('=') + 1
         next_page_number = int(next_page[index :])
 
-        if next_page is not None and next_page_number <= self.max_page_number:
+        if next_page is not None and next_page_number <= self.last_page:
             yield response.follow(url=next_page, callback=self.parseBookmarks)
 
     def getImage(self, response):
