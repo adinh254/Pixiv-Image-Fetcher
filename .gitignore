@@ -15,6 +15,7 @@ bookmarks/
 *.swo
 *.swm
 *.swn
+.ycm_extra_conf.py
 
 ### Packaging ###
 *.egg-info/
