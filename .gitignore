@@ -2,8 +2,6 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
 
-
-
 ### VisualStudioCode ###
 .vscode/*
 !.vscode/settings.json
@@ -13,4 +11,13 @@ __pycache__/
 bookmarks/
 
 ### Vim ###
+*.swp
+*.swo
+*.swm
+*.swn
 
+### Packaging ###
+*.egg-info/
+
+### Pylint ###
+pylintrc
