@@ -19,6 +19,7 @@ from scrapy.exceptions import DropItem
 LOGGER = logging.getLogger(__name__)
 
 class PixivImagePipeline(FilesPipeline):
+    """File Pipeline"""
 
     def get_media_requests(self, item, info):
         """Overriden for Exception Handling"""
@@ -52,9 +53,9 @@ class PixivImagePipeline(FilesPipeline):
         media_ext = os.path.splitext(request.url)[1]
 
         if request.meta.get('album'):
-            return '%s/%s_%s/%s_p%s%s' % (request.meta['user_id'], request.meta['artist_id'], 
-                                          request.meta['illust_id'], request.meta['illust_id'], 
+            return '%s/%s_%s/%s_p%s%s' % (request.meta['user_id'], request.meta['artist_id'],
+                                          request.meta['illust_id'], request.meta['illust_id'],
                                           request.meta['image_num'], media_ext)
 
-        return '%s/%s_%s%s' % (request.meta['user_id'], request.meta['artist_id'], 
+        return '%s/%s_%s%s' % (request.meta['user_id'], request.meta['artist_id'],
                                request.meta['illust_id'], media_ext)

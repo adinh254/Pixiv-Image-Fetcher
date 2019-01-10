@@ -10,35 +10,57 @@ import os
 import scrapy
 
 from scrapy.spidermiddlewares.httperror import HttpError
-
-from .. import items
+from pixiv_image_fetcher import items
 
 class BookmarksSpider(scrapy.Spider):
     """Initial spider to login to Pixiv page"""
-    name = "bookmarks"
+    name = "login"
     allowed_domains = ['pixiv.net', 'i.pximg.net']
     start_urls = ['https://accounts.pixiv.net/login']
     bookmarks_page = 'https://www.pixiv.net/bookmark.php?rest=show'
-
-    # User Input
-    pixiv_id = ''
-    password = ''
-    starting_page = 0
-    last_page = 0
+    bookmarks_tags = 'https://www.pixiv.net/bookmark_tag_all.php'
 
     # Class Variables
-    user_id = ''
     orig_image_pattern = re.compile(r'(c.*?master)(.*?)(_m.*?)(.jpg)')
 
-    def __init__(self, pixiv_id='', password='', starting_page=)
+    def __init__(self, pixiv_id='', password='', starting_page=0,
+                 last_page=0, filter_tags=False, **kwargs):
+
+        super().__init__(**kwargs)
+        self.pixiv_id = pixiv_id
+        self.password = password
+
+        self.starting_page = starting_page
+        self.last_page = last_page
+
+        self.filter_tags = filter_tags
+
     def parse(self, response):
         """Generates login form request"""
 
         return scrapy.FormRequest.from_response(
             response,
             formdata={'pixiv_id' : self.pixiv_id, 'password' : self.password},
-            callback=self.afterLogin
+            callback=self.checkLogin
         )
+
+    def checkLogin(self, response):
+        """Check login validity
+
+        Error case for login info.
+        Login loop to try again.
+        """
+
+        # Login Case
+        if b"error-msg-list__item" in response.body:
+            self.logger.error("Auth Failed: Invalid username or password.")
+            self.pixiv_id = input('Email/Pixiv ID: ')
+            self.password = input('Password: ')
+            return self.parse(response)
+
+
+        self.logger.info("Login Successful!")
+        return self.afterLogin(response)
 
     def afterLogin(self, response):
         """Check login validity
@@ -46,19 +68,41 @@ class BookmarksSpider(scrapy.Spider):
         Error case for login info.
         """
 
-        # Login Case
-        if b"error-msg-list__item" in response.body:
-            self.logger.error("Login failed")
-            return None
-
         user_id_pattern = re.compile(r'pixiv\.user\.id = "(\d+?)"')
-        self.user_id = response.xpath('//head/script[contains(., "pixiv.user.id = ")]/text()') \
+        user_id = response.xpath('//head/script[contains(., "pixiv.user.id = ")]/text()') \
                                  .re(user_id_pattern)[0]
 
-        self.logger.info("Login Successful!")
+        if self.filter_tags:
+            return scrapy.Request(url=self.bookmarks_tags, meta={'user_id' : user_id},
+                                  callback=self.parseTags)
+
         if self.starting_page:
             self.bookmarks_page += '&p=%s' % str(self.starting_page)
-        return scrapy.Request(url=self.bookmarks_page, callback=self.parseBookmarks)
+        return scrapy.Request(url=self.bookmarks_page, meta={'user_id' : user_id},
+                              callback=self.parseBookmarks)
+
+    def parseTags(self, response):
+        """Extract list of tags with information
+
+        Filters out tag duplicates
+        """
+
+        tag_sizes = response.xpath('//dl[@class="tag-list"]/dt/text()').extract()
+        tag_selectors = response.xpath('//dl[@class="tag-list"]/dd')
+        print('Getting List of tags...')
+
+        tag_dict = {}
+        for tag_size, tag_selector in zip(tag_sizes, tag_selectors):
+            tag_names = tag_selector.xpath('.//a/text()').extract()
+            for tag_name in tag_names:
+                tag_dict[tag_name] = tag_size
+                print('%s: %s' % (tag_name, tag_size))
+
+        print('\nTo filter type "[tag_name]" followed by "+" if filtering more than 1 tag. Tags are case-sensitive!')
+        print('Example: original + bishoujou')
+        tag_input = input('Tags: ')
+        tag_input_list = re.findall(r'\w+', tag_input, re.UNICODE)
+        # todo search for matching tag_inputs in tag_dict and sort tag links
 
     def parseBookmarks(self, response):
         """Gets all artist illustrations and artist info in current bookmark page.
@@ -66,9 +110,6 @@ class BookmarksSpider(scrapy.Spider):
         Case if artist illustration is an album and contains multiple images.
         Recursively calls next page.
         """
-
-        from scrapy.shell import inspect_response
-        inspect_response(response, self)
 
         # Filters out ugoiras
         illust_selectors = response.xpath(r'//div[@class="display_editable_works"]'
@@ -85,7 +126,7 @@ class BookmarksSpider(scrapy.Spider):
             num_of_images = illust_selector.xpath('./div/span/text()').extract_first()
             if artist_id != '0':
                 item = items.BookmarksImage()
-                item['user_id'] = self.user_id
+                item['user_id'] = response.meta['user_id']
                 item['illust_id'] = illust_id
                 item['artist_id'] = artist_id
                 item['referer'] = referer
@@ -109,7 +150,8 @@ class BookmarksSpider(scrapy.Spider):
         if next_page is not None and next_page_number <= self.last_page:
             yield response.follow(url=next_page, callback=self.parseBookmarks)
 
-    def getImage(self, response):
+    @staticmethod
+    def getImage(response):
         """Insert image information into pipeline.
 
         Check if image is in an album.
@@ -138,3 +180,4 @@ class BookmarksSpider(scrapy.Spider):
                                   callback=self.getImage,
                                   headers=response.request.headers,
                                   meta=response.request.meta)
+        return None

@@ -16,11 +16,20 @@ class BookmarksImage(scrapy.Item):
 
     Downloaded image name format data
     """
-    # Info
+
     image_urls = scrapy.Field()
     referer = scrapy.Field()
 
-    #Format
     user_id = scrapy.Field()
     artist_id = scrapy.Field()
     illust_id = scrapy.Field()
+
+class Tag(scrapy.Item):
+    """Tag Information
+
+    Extracted tag information
+    """
+    tag_name = scrapy.Field()
+    tag_size = scrapy.Field()
+
+    tag_link = scrapy.Field()

@@ -64,7 +64,7 @@ ROBOTSTXT_OBEY = True
 
 # Configure item pipelines
 # See https://doc.scrapy.org/en/latest/topics/item-pipeline.html
-FILES_STORE = ''
+FILES_STORE = 'bookmarks'
 ITEM_PIPELINES = {
     'pixiv_image_fetcher.pipelines.PixivImagePipeline': 1,
 }

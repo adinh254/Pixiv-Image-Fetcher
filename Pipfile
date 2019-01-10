@@ -5,7 +5,8 @@ name = "pypi"
 
 [packages]
 scrapy = "*"
-"pywin32" = "*"
+pylint = "*"
+pixiv-image-fetcher = {editable = true,path = "."}
 
 [dev-packages]
 pylint = "*"
