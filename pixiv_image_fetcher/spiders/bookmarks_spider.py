@@ -17,14 +17,14 @@ class BookmarksSpider(scrapy.Spider):
     name = "login"
     allowed_domains = ['pixiv.net', 'i.pximg.net']
     start_urls = ['https://accounts.pixiv.net/login']
-    bookmarks_page = 'https://www.pixiv.net/bookmark.php?rest=show'
+    bookmarks_page = 'https://www.pixiv.net/bookmark.php?rest=show&tag=Favorite'
     bookmarks_tags = 'https://www.pixiv.net/bookmark_tag_all.php'
 
     # Class Variables
     orig_image_pattern = re.compile(r'(c.*?master)(.*?)(_m.*?)(.jpg)')
 
     def __init__(self, pixiv_id='', password='', starting_page=0,
-                 last_page=0, filter_tags=False, **kwargs):
+                 last_page=19, filter_tags=False, **kwargs):
 
         super().__init__(**kwargs)
         self.pixiv_id = pixiv_id
@@ -147,8 +147,9 @@ class BookmarksSpider(scrapy.Spider):
         next_page = response.xpath('//span[@class="next"]/a/@href').extract_first()
         index = next_page.rfind('=') + 1
         next_page_number = int(next_page[index :])
-        if next_page is not None and next_page_number <= self.last_page:
-            yield response.follow(url=next_page, callback=self.parseBookmarks)
+        if next_page is not None and (next_page_number <= self.last_page or self.last_page == -1):
+            yield response.follow(url=next_page, meta={'user_id' : response.meta['user_id']},
+                                  callback=self.parseBookmarks)
 
     @staticmethod
     def getImage(response):
