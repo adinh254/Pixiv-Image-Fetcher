@@ -24,7 +24,7 @@ class BookmarksSpider(scrapy.Spider):
     orig_image_pattern = re.compile(r'(c.*?master)(.*?)(_m.*?)(.jpg)')
 
     def __init__(self, pixiv_id='', password='', starting_page=0,
-                 last_page=19, filter_tags=False, **kwargs):
+                 last_page=-1, filter_tags=False, **kwargs):
 
         super().__init__(**kwargs)
         self.pixiv_id = pixiv_id
