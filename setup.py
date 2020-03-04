@@ -8,4 +8,5 @@ setup(name='pixiv-image-fetcher',
       author_email='adinh254@gmail.com',
       license='MIT',
       packages=['pixiv_image_fetcher'],
+      install_requires=['scrapy'],
       zip_safe=False)
